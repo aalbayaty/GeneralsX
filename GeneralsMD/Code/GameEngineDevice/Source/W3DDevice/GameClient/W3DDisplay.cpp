@@ -1048,17 +1048,31 @@ void W3DDisplay::init()
 		while (attempt < 3 && renderDeviceError != WW3D_ERROR_OK);
 
 		// GeneralsX @bugfix 22/07/2026 Fullscreen device creation is fragile on native
-		// Windows (modern GPUs may not expose the requested resolution as an exact
-		// fullscreen mode). Rather than fail outright, fall back to windowed mode, which
-		// uses the current desktop display mode and is far more robust. This is a safety
-		// net only: it triggers when every fullscreen attempt above has already failed.
+		// Windows (modern/high-DPI displays may not expose the requested resolution as an
+		// exact fullscreen mode). Rather than fail outright, fall back to a window sized to
+		// the desktop - effectively borderless-fullscreen, which uses the desktop display
+		// mode and is far more robust. This is a safety net only: it triggers when every
+		// fullscreen attempt above has already failed.
 		if (renderDeviceError != WW3D_ERROR_OK && getWindowed() == FALSE)
 		{
 			fprintf(stderr, "WARNING: W3DDisplay::init() - fullscreen render device failed; retrying windowed\n");
+
+			// Target the desktop resolution explicitly so the fallback is deterministic
+			// (the failed fullscreen attempts above may have left m_xResolution in an
+			// arbitrary state). Fall back to the configured resolution if unavailable.
+			Int fallbackW = TheGlobalData->m_xResolution;
+			Int fallbackH = TheGlobalData->m_yResolution;
+#ifdef _WIN32
+			const Int screenW = GetSystemMetrics( SM_CXSCREEN );
+			const Int screenH = GetSystemMetrics( SM_CYSCREEN );
+			if ( screenW > 0 && screenH > 0 ) { fallbackW = screenW; fallbackH = screenH; }
+#endif
 			TheWritableGlobalData->m_windowed = true;
+			TheWritableGlobalData->m_xResolution = fallbackW;
+			TheWritableGlobalData->m_yResolution = fallbackH;
 			setWindowed( TRUE );
-			setWidth( TheGlobalData->m_xResolution );
-			setHeight( TheGlobalData->m_yResolution );
+			setWidth( fallbackW );
+			setHeight( fallbackH );
 			setBitDepth( DEFAULT_DISPLAY_BIT_DEPTH );
 			renderDeviceError = WW3D::Set_Render_Device(
 				0, getWidth(), getHeight(), getBitDepth(), getWindowed(), true );
