@@ -18,8 +18,9 @@
 #   UPSTREAM_REPO   Original GeneralsX repo      (default: fbraz3/GeneralsX)
 #   FORK_REPO       Fork to publish releases to  (default: aalbayaty/GeneralsX)
 #   FIXES_REF       Branch on FORK_REPO carrying the Windows build fixes to merge onto
-#                   the upstream release. Set empty once the fixes are merged upstream.
-#                   (default: fix/mingw-docker-widl)
+#                   the upstream release. Its merge-base with each upstream tag is the
+#                   release it was built from, so only the Windows-fix delta is applied.
+#                   Set empty once the fixes are merged upstream. (default: main)
 #   PRESET          CMake preset to build        (default: mingw-w64-i686)
 #   ASSET_NAME      Release asset filename       (default: GeneralsXZH-windows-x86.zip)
 
@@ -27,7 +28,7 @@ set -eo pipefail
 
 UPSTREAM_REPO="${UPSTREAM_REPO:-fbraz3/GeneralsX}"
 FORK_REPO="${FORK_REPO:-aalbayaty/GeneralsX}"
-FIXES_REF="${FIXES_REF-fix/mingw-docker-widl}"
+FIXES_REF="${FIXES_REF-main}"
 PRESET="${PRESET:-mingw-w64-i686}"
 ASSET_NAME="${ASSET_NAME:-GeneralsXZH-windows-x86.zip}"
 

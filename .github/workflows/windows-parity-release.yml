@@ -43,7 +43,7 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           UPSTREAM_REPO: fbraz3/GeneralsX
           FORK_REPO: ${{ github.repository }}
-          FIXES_REF: fix/mingw-docker-widl
+          FIXES_REF: main
           PRESET: mingw-w64-i686
         run: |
           chmod +x scripts/release/windows-parity-release.sh
