@@ -52,9 +52,10 @@
 
 #include "dx8wrapper.h"
 // GeneralsX @build BenderAI 10/02/2026 - Need LoadLibrary/GetProcAddress/FreeLibrary for dynamic loading
-#include "module_compat.h"
+// GeneralsX @build 22/07/2026 POSIX-only shim; Windows gets these from windows.h
 // GeneralsX @build felipebraz 16/02/2026 - Need dlerror() for dlopen() error reporting on Linux
 #ifndef _WIN32
+#include "module_compat.h"
 #include <dlfcn.h>
 #endif
 // GeneralsX @build BenderAI 10/02/2026 - Embedded browser Windows-only (requires COM LPDISPATCH)

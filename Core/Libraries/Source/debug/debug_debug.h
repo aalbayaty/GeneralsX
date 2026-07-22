@@ -33,9 +33,13 @@
 #include <cstdint>
 
 // GeneralsX @bugfix fbraz 03/02/2026 Use guard macro to prevent typedef conflicts
+// GeneralsX @build 22/07/2026 On MinGW, __int64 is a command-line macro
+// (cmake/mingw.cmake defines it as "long long"), so the typedef must not re-declare it.
 #ifndef _INT64_TYPES_DEFINED
 	#define _INT64_TYPES_DEFINED
+	#ifndef __int64
 	typedef int64_t __int64;
+	#endif
 #endif
 
 #ifndef __forceinline

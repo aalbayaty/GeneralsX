@@ -863,6 +863,9 @@ void ReleaseCrashLocalized(const AsciiString& p, const AsciiString& m)
 		}
 	}
 
+	// GeneralsX @build 22/07/2026 Defined in each game's GameEngine.cpp; this Windows-only
+	// block never compiled on Linux/macOS, so the missing declaration went unnoticed.
+	extern const Bool TheSystemIsUnicode;
 	if (TheSystemIsUnicode)
 	{
 		::MessageBoxW(nullptr, mesg.str(), prompt.str(), MB_OK|MB_SYSTEMMODAL|MB_ICONERROR);

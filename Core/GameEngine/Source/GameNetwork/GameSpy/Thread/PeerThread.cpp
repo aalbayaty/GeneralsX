@@ -47,6 +47,12 @@
 
 #include "Common/MiniLog.h"
 
+// GeneralsX @build 22/07/2026 Winsock 1 has no socklen_t; address-length params are int.
+// (Harmless duplicate if ws2tcpip.h is also in the include chain - it uses int too.)
+#ifdef _WIN32
+typedef int socklen_t;
+#endif
+
 
 // enable this for trying to track down why SBServers are losing their keyvals  -MDC 2/20/2003
 #undef SERVER_DEBUGGING

@@ -29,7 +29,8 @@
 
 #include "PreRTS.h"	// This must go first in EVERY cpp file in the GameEngine
 
-#ifndef _WIN32
+// GeneralsX @build 22/07/2026 MinGW also uses the fenv-based setFPMode() branch
+#if !defined(_WIN32) || defined(__MINGW32__)
 #include <fenv.h>
 #if defined(__SSE__) || defined(__x86_64__)
 #include <xmmintrin.h>
@@ -46,7 +47,9 @@
 #include "Common/GameLOD.h"
 #include "Common/GameState.h"
 
-#if DEEP_CRC_TO_MEMORY
+#if DEEP_CRC_TO_MEMORY && !defined(_WIN32)
+// GeneralsX @build 22/07/2026 POSIX/SDL system info for the deep CRC dump header;
+// native Windows builds emit a static header instead (no SDL3, no <sys/utsname.h>).
 #include <sys/utsname.h>
 #include <SDL3/SDL.h>
 #endif
@@ -218,7 +221,9 @@ void setFPMode()
 	//
 	
 	// GeneralsX @bugfix BenderAI 14/03/2026 Align non-Windows x86 FPU control with the Windows replay determinism baseline.
-	#ifdef _WIN32
+	// GeneralsX @build 22/07/2026 MinGW hides _controlfp/_fpreset under strict-ANSI; the
+	// fenv + x87/MXCSR branch below sets the identical state (PC=24-bit, RC=nearest) via GCC idioms.
+	#if defined(_WIN32) && !defined(__MINGW32__)
 	_fpreset();
 
 	UnsignedInt curVal = _statusfp();
@@ -5657,6 +5662,14 @@ void GameLogic::writeCRCBuffersToDisk(UnsignedInt frame) const
 	AsciiString str;
 	// GeneralsX: Generate OS/Arch header
 	AsciiString headerStr;
+#ifdef _WIN32
+	// GeneralsX @build 22/07/2026 Windows builds have no uname()/SDL3; static header
+#ifdef _WIN64
+	headerStr = "GeneralsX: Windows\nArch: x86_64\n\n";
+#else
+	headerStr = "GeneralsX: Windows\nArch: x86\n\n";
+#endif
+#else
 	struct utsname sysInfo;
 	if (uname(&sysInfo) == 0) {
 		headerStr.format("GeneralsX: %s %s (%s)\nArch: %s\nCPU Cores: %d\nRAM: %d MB\n\n",
@@ -5665,6 +5678,7 @@ void GameLogic::writeCRCBuffersToDisk(UnsignedInt frame) const
 	} else {
 		headerStr = "GeneralsX: Unknown OS/Arch\n\n";
 	}
+#endif
 
 	// Format filename as deep_crc_YYYY-MM-DD-HH-MM-SS.bin inside user data Debug dir
 	time_t t = time(nullptr);

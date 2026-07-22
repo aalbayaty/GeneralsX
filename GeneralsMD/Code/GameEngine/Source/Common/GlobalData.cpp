@@ -1392,7 +1392,8 @@ AsciiString GlobalData::BuildUserDataPathFromRegistry()
 #ifdef _WIN32
 	// GeneralsX @refactor Bender 01/04/2026 Windows-specific path handling (Registry-based)
 	// Integrates upstream bug-fix for OneDrive/Group Policy folder redirection
-#if defined(_MSC_VER) && (_MSC_VER < 1300)
+// GeneralsX @build 22/07/2026 MinGW headers also lack these (and the local GUID avoids -luuid)
+#if (defined(_MSC_VER) && (_MSC_VER < 1300)) || defined(__MINGW32__)
 	// VC6 lacks FOLDERID_Documents and KF_FLAG_DEFAULT
 	const GUID FOLDERID_Documents = { 0xFDD39AD0, 0x238F, 0x46AF, 0xAD, 0xB4, 0x6C, 0x85, 0x48, 0x03, 0x69, 0xC7 };
 	const DWORD KF_FLAG_DEFAULT = 0;

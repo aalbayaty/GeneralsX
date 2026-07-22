@@ -180,7 +180,13 @@ public:
         ;
 #else
         while (cs.Flag.test_and_set(std::memory_order_acq_rel)) {
+// GeneralsX @build 22/07/2026 atomic wait/notify is C++20 (libstdc++ >= 11);
+// fall back to a yielding spin on older toolchains (e.g. MinGW GCC 10).
+#if defined(__cpp_lib_atomic_wait)
             cs.Flag.wait(true, std::memory_order_relaxed);
+#else
+            ThreadClass::Switch_Thread();
+#endif
         }
 #endif
     }
@@ -190,7 +196,9 @@ public:
       cs.Flag=0;
 #else
       cs.Flag.clear(std::memory_order_release);
+#if defined(__cpp_lib_atomic_wait)
       cs.Flag.notify_one();
+#endif
 #endif
     }
 

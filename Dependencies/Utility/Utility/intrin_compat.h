@@ -69,6 +69,12 @@ static inline __int64 _rdtsc()
 // Non-VC6 macros
 #if !(defined(_MSC_VER) && _MSC_VER < 1300)
 
+// GeneralsX @build 22/07/2026 On MinGW the CRT _isnan/_finite declarations live in
+// <float.h> (not <math.h>); include it so call sites resolve without macro shims.
+#if defined(__MINGW32__)
+#include <float.h>
+#endif
+
 #include <cstdint>
 
 #if !defined(_lrotl) && !defined(_WIN32)

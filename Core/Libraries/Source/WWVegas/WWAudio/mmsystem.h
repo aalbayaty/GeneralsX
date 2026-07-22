@@ -8,7 +8,19 @@
 
 #pragma once
 
-#if defined(SAGE_USE_OPENAL) && !defined(_WIN32)
+#if defined(_WIN32)
+    // GeneralsX @build 22/07/2026 Native Windows builds (MinGW) must see the real
+    // SDK header. This stub shadows it because WWAudio is on the include path;
+    // #include_next resumes the search in the remaining (system) include dirs.
+    #if defined(__GNUC__) || defined(__clang__)
+        #include_next <mmsystem.h>
+    #else
+        // MSVC has no #include_next; it would also resolve to this stub since the
+        // WWAudio include dir precedes the SDK. MSVC builds of this fork are not
+        // currently exercised - fail loudly rather than silently define nothing.
+        #error "WWAudio mmsystem.h stub cannot delegate to the Windows SDK header on this compiler"
+    #endif
+#elif defined(SAGE_USE_OPENAL)
     #ifndef _MMSYSTEM_H_
     #define _MMSYSTEM_H_
 

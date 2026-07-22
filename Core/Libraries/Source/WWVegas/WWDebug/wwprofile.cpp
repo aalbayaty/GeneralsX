@@ -353,8 +353,13 @@ int									WWProfileManager::FrameCounter = 0;
 __int64								WWProfileManager::ResetTime = 0;
 
 // GeneralsX @bugfix BenderAI 24/02/2026 Phase 5 - ThreadID type must match THREAD_ID on all platforms
+// GeneralsX @build 22/07/2026 thread_compat.h is POSIX-only; Windows keeps the upstream type
+#ifdef _WIN32
+static unsigned int				ThreadID = static_cast<unsigned int>(-1);
+#else
 #include "thread_compat.h"
 static THREAD_ID				ThreadID = {};  // Default-initialized thread ID (platform-specific)
+#endif
 
 
 /***********************************************************************************************

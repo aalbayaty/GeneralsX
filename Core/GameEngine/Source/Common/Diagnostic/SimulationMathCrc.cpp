@@ -25,7 +25,8 @@
 #include "GameLogic/FPUControl.h"
 
 #include <math.h>
-#ifndef _WIN32
+// GeneralsX @build 22/07/2026 MinGW also uses the fenv-based restore path
+#if !defined(_WIN32) || defined(__MINGW32__)
 #include <fenv.h>
 #endif
 
@@ -69,7 +70,8 @@ UnsignedInt SimulationMathCrc::calculate()
     appendSimulationMathCrc(xfer);
 
     // GeneralsX @build BenderAI 12/03/2026 Restore the default FP environment portably after CRC sampling.
-#ifdef _WIN32
+    // GeneralsX @build 22/07/2026 MinGW hides _fpreset under strict-ANSI; use the fenv path.
+#if defined(_WIN32) && !defined(__MINGW32__)
     _fpreset();
 #else
     fesetenv(FE_DFL_ENV);

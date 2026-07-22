@@ -32,11 +32,15 @@
 #include <sys/types.h>
 #include <sys/timeb.h>
 #include <stdlib.h>
+#include <time.h>
 #ifdef _WIN32
 #include <process.h>
 #include <io.h>
 #include "winsock.h"
 #include <direct.h>
+#include <sys/stat.h>  // GeneralsX @build 22/07/2026 _S_IWRITE/_S_IREAD (was unconditional upstream)
+// GeneralsX @build 22/07/2026 Winsock 1 has no socklen_t; getsockname takes int*
+typedef int socklen_t;
 #else
 #include "windows_compat.h"  // Includes socket_compat.h (Winsock → POSIX BSD sockets)
 #include <unistd.h>

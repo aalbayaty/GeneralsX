@@ -31,6 +31,8 @@
 #ifdef _WIN32
 #include <winsock.h>
 #include <io.h>
+// GeneralsX @build 22/07/2026 Winsock 1 has no socklen_t; address-length params are int
+typedef int socklen_t;
 //#define close _close
 //#define read  _read
 //#define write _write
