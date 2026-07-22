@@ -2,7 +2,9 @@
 # Build GeneralsXZH for Windows using MinGW cross-compiler in Docker
 # Usage: ./scripts/build/linux/docker-build-mingw-zh.sh [preset]
 
-set -e
+# GeneralsX @build 22/07/2026 pipefail: without it, `docker run | tee` reports the
+# tee exit code and the script prints a success banner even when the build failed.
+set -eo pipefail
 
 PRESET="${1:-mingw-w64-i686}"
 LOG_FILE="logs/build_zh_${PRESET}_docker.log"
@@ -51,7 +53,7 @@ docker run --rm \
         cmake --build build/${PRESET} --target z_generals
         
         echo '✅ Build complete!'
-        ls -lh build/${PRESET}/GeneralsMD/GeneralsXZH.exe || echo '⚠️  Binary not found'
+        ls -lh build/${PRESET}/GeneralsMD/generalszh.exe || echo '⚠️  Binary not found'
     " 2>&1 | tee "$LOG_FILE"
 
 echo "✅ Build complete. Log: $LOG_FILE"
