@@ -11,16 +11,6 @@ option(RTS_BUILD_OPTION_VC6_FULL_DEBUG "Build VC6 with full debug info." OFF)
 option(RTS_BUILD_OPTION_FFMPEG "Enable FFmpeg support" OFF)
 option(RTS_BUILD_OPTION_DEEP_CRC "Enable deep CRC snapshots on sync mismatch" ON)
 
-# GeneralsX @build 22/07/2026 Native Windows builds use the DirectX 8 SDK stub
-# (min-dx8-sdk); non-Windows platforms use DXVK. Previously this variable had no
-# default at all, so MinGW builds silently fetched DXVK's Linux headers, which
-# shadow the real Windows SDK headers and break the build.
-if(WIN32)
-    option(SAGE_USE_DX8 "Use native DirectX 8 SDK (Windows)" ON)
-else()
-    option(SAGE_USE_DX8 "Use native DirectX 8 SDK (Windows)" OFF)
-endif()
-
 # Linux/SDL3 and OpenAL options (Phase 1 Linux port)
 option(SAGE_USE_SDL3 "Use SDL3 for windowing/input (Linux/macOS)" OFF)
 option(SAGE_USE_OPENAL "Use OpenAL for audio backend (Linux/macOS)" OFF)

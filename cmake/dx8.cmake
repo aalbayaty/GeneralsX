@@ -18,6 +18,17 @@
 
 set(DXVK_VERSION "v2.6")
 
+# GeneralsX @build 22/07/2026 Native Windows builds use the DirectX 8 SDK stub
+# (min-dx8-sdk); non-Windows platforms use DXVK. Defined here (not config-build.cmake)
+# because this file runs earlier in the root CMakeLists. Previously the variable had
+# no default at all, so MinGW builds silently fetched DXVK's Linux headers, which
+# shadow the real Windows SDK headers and break the build.
+if(WIN32)
+    option(SAGE_USE_DX8 "Use native DirectX 8 SDK (Windows)" ON)
+else()
+    option(SAGE_USE_DX8 "Use native DirectX 8 SDK (Windows)" OFF)
+endif()
+
 if(SAGE_USE_DX8)
   # Windows: Fetch min-dx8-sdk for native DirectX 8
   FetchContent_Declare(
