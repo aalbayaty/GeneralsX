@@ -25,6 +25,8 @@ RUN apt-get update -qq && \
         pkg-config \
         mingw-w64 \
         wine64 \
+        wine64-tools \
+        libwine-dev \
         && \
     rm -rf /var/lib/apt/lists/*
 
