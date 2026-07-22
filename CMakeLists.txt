@@ -137,7 +137,9 @@ endif()
 # SagePatch (casual QoL extras: screenshot, cursor lock, brightness, etc.)
 # Must be added before the game targets so sage_patch target exists when we
 # declare the dependency below.
-if(RTS_BUILD_OPTION_SAGE_PATCH)
+# GeneralsX @build 22/07/2026 SagePatch is SDL3-only (macOS/Linux); skip it for
+# native Windows builds instead of failing the configure.
+if(RTS_BUILD_OPTION_SAGE_PATCH AND SAGE_USE_SDL3)
     add_subdirectory(Patches/SagePatch)
 endif()
 

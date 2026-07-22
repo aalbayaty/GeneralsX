@@ -45,8 +45,12 @@ target_link_libraries(d3dx8 PUBLIC d3d8lib)
 else()
 # Linux only: Create empty d3dx8 stub library to satisfy d3d8lib linkage
 # macOS and Win64 both build real d3dx8 STATIC above; Linux can use the stub for now
-add_library(d3dx8 INTERFACE)
-target_link_libraries(d3dx8 INTERFACE d3d8lib)
+# GeneralsX @build 22/07/2026 Skip when d3dx8 already exists: cmake/mingw.cmake creates
+# an imported d3dx8 -> d3dx8d alias for MinGW-w64 cross builds (32-bit WIN32 lands here).
+if(NOT TARGET d3dx8)
+    add_library(d3dx8 INTERFACE)
+    target_link_libraries(d3dx8 INTERFACE d3d8lib)
+endif()
 endif()
 
 # GeneralsX @build BenderAI 10/02/2026

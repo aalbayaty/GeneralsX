@@ -8,7 +8,12 @@ add_library(zi_always_no_pch INTERFACE) # Use this for Shared Libs with MFC AFX
 target_include_directories(zi_gameengine_include INTERFACE "GameEngine/Include")
 target_include_directories(zi_libraries_source_wwvegas INTERFACE "Libraries/Source/WWVegas")
 target_include_directories(zi_main INTERFACE "Main")
-target_include_directories(zi_always INTERFACE "CompatLib/Include")  # TheSuperHackers @build 08/02/2026 Add DirectX 8 compat headers
+# TheSuperHackers @build 08/02/2026 Add DirectX 8 compat headers
+# GeneralsX @build 22/07/2026 POSIX-only: CompatLib ships a fake windows.h and Win32 type
+# shims that shadow the real MinGW/MSVC SDK headers on native Windows builds.
+if(NOT WIN32)
+    target_include_directories(zi_always INTERFACE "CompatLib/Include")
+endif()
 
 target_compile_definitions(zi_always INTERFACE
     RTS_ZEROHOUR=1

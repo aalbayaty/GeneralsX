@@ -27,6 +27,13 @@ set(CMAKE_FIND_ROOT_PATH_MODE_INCLUDE ONLY)
 # Force 32-bit pointer size
 set(CMAKE_SIZEOF_VOID_P 4)
 
+# GeneralsX @build 22/07/2026 Determinism: i686 GCC defaults to x87 math (80-bit
+# intermediates), which breaks CRC lockstep parity with the SSE/NEON math of the
+# x86_64/ARM64 builds. Force SSE2 so all platforms compute in strict IEEE754.
+# (-ffp-contract=off is applied globally by cmake/compilers.cmake.)
+set(CMAKE_C_FLAGS_INIT "-msse2 -mfpmath=sse")
+set(CMAKE_CXX_FLAGS_INIT "-msse2 -mfpmath=sse")
+
 # Disable MFC-dependent tools (not compatible with MinGW-w64)
 set(RTS_BUILD_CORE_TOOLS OFF CACHE BOOL "Disable MFC-dependent core tools for MinGW" FORCE)
 set(RTS_BUILD_GENERALS_TOOLS OFF CACHE BOOL "Disable MFC-dependent Generals tools for MinGW" FORCE)

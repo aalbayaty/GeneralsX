@@ -1155,8 +1155,14 @@ target_sources(z_gameengine PRIVATE ${GAMEENGINE_SRC})
 
 target_include_directories(z_gameengine PUBLIC
     Include
-    ../CompatLib/Include  # Needed for d3dx8math.h in PCH
 )
+# GeneralsX @build 22/07/2026 POSIX-only: CompatLib provides d3dx8math.h for the PCH on
+# Linux/macOS; native Windows builds get it from min-dx8-sdk and must not see the shims.
+if(NOT WIN32)
+    target_include_directories(z_gameengine PUBLIC
+        ../CompatLib/Include  # Needed for d3dx8math.h in PCH
+    )
+endif()
 
 # Ensure DXVK headers are available when building on Linux
 if(NOT SAGE_USE_DX8 AND dxvk_SOURCE_DIR)

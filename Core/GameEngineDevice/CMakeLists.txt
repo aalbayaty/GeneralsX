@@ -201,7 +201,20 @@ if(WIN32)
         Source/Win32Device/Common/Win32LocalFile.cpp
         Source/Win32Device/Common/Win32LocalFileSystem.cpp
 #        Source/Win32Device/Common/Win32OSDisplay.cpp
-#        Source/Win32Device/GameClient/Win32DIKeyboard.cpp
+        # GeneralsX @build 22/07/2026 Compile Win32 input from Core like upstream;
+        # game-level CMakeLists reference these paths but the files live here.
+        Include/Win32Device/GameClient/Win32DIKeyboard.h
+        Include/Win32Device/GameClient/Win32Mouse.h
+        Source/Win32Device/GameClient/Win32DIKeyboard.cpp
+        Source/Win32Device/GameClient/Win32Mouse.cpp
+        # GeneralsX @build 22/07/2026 Windows audio device is Miles (retail mss32.dll
+        # at runtime, TheSuperHackers stub SDK at link time), like upstream.
+        Include/MilesAudioDevice/MilesAudioManager.h
+        Source/MilesAudioDevice/MilesAudioManager.cpp
+        # GeneralsX @build 22/07/2026 Windows video device is Bink (retail binkw32.dll
+        # at runtime, TheSuperHackers stub SDK at link time), like upstream.
+        Include/VideoDevice/Bink/BinkVideoPlayer.h
+        Source/VideoDevice/Bink/BinkVideoPlayer.cpp
     )
 endif()
 

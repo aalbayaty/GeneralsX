@@ -8,7 +8,11 @@ add_library(gi_always_no_pch INTERFACE) # Use this for Shared Libs with MFC AFX
 target_include_directories(gi_gameengine_include INTERFACE "GameEngine/Include")
 target_include_directories(gi_libraries_source_wwvegas INTERFACE "Libraries/Source/WWVegas")
 target_include_directories(gi_main INTERFACE "Main")
-target_include_directories(gi_always INTERFACE "CompatLib/Include")
+# GeneralsX @build 22/07/2026 POSIX-only: CompatLib ships a fake windows.h and Win32 type
+# shims that shadow the real MinGW/MSVC SDK headers on native Windows builds.
+if(NOT WIN32)
+    target_include_directories(gi_always INTERFACE "CompatLib/Include")
+endif()
 
 target_compile_definitions(gi_always INTERFACE
     RTS_GENERALS=1
