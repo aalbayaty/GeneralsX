@@ -811,37 +811,21 @@ bool DX8Wrapper::Create_Device()
 	WWASSERT(D3DDevice==nullptr);	// for now, once you've created a device, you're stuck with it!
 
 	D3DCAPS8 caps;
-	if
-	(
-		FAILED
-		(
-			D3DInterface->GetDeviceCaps
-			(
-				CurRenderDevice,
-				WW3D_DEVTYPE,
-				&caps
-			)
-		)
-	)
+	// GeneralsX @build 22/07/2026 Diagnostic logging for D3D device-creation failures
+	// (the fullscreen path is a known problem area on native Windows).
+	HRESULT capsHr = D3DInterface->GetDeviceCaps( CurRenderDevice, WW3D_DEVTYPE, &caps );
+	if ( FAILED( capsHr ) )
 	{
+		fprintf(stderr, "ERROR: Create_Device() - GetDeviceCaps failed hr=0x%08lX\n", (unsigned long)capsHr);
 		return false;
 	}
 
 	::ZeroMemory(&CurrentAdapterIdentifier, sizeof(D3DADAPTER_IDENTIFIER8));
 
-	if
-	(
-		FAILED
-		(
-			D3DInterface->GetAdapterIdentifier
-			(
-				CurRenderDevice,
-				D3DENUM_NO_WHQL_LEVEL,
-				&CurrentAdapterIdentifier
-			)
-			)
-	)
+	HRESULT idHr = D3DInterface->GetAdapterIdentifier( CurRenderDevice, D3DENUM_NO_WHQL_LEVEL, &CurrentAdapterIdentifier );
+	if ( FAILED( idHr ) )
 	{
+		fprintf(stderr, "ERROR: Create_Device() - GetAdapterIdentifier failed hr=0x%08lX\n", (unsigned long)idHr);
 		return false;
 	}
 
@@ -872,6 +856,13 @@ bool DX8Wrapper::Create_Device()
 	// the graphics driver from potentially loading the old game dbghelp.dll and then crashing the game process.
 	DbgHelpGuard dbgHelpGuard;
 
+	// GeneralsX @build 22/07/2026 Log the exact device parameters and CreateDevice result.
+	fprintf(stderr, "DEBUG: Create_Device() - CreateDevice(dev=%d windowed=%d %ux%u backbuf=0x%X depth=0x%X refresh=%u vp=0x%X)\n",
+		CurRenderDevice, _PresentParameters.Windowed,
+		_PresentParameters.BackBufferWidth, _PresentParameters.BackBufferHeight,
+		_PresentParameters.BackBufferFormat, _PresentParameters.AutoDepthStencilFormat,
+		_PresentParameters.FullScreen_RefreshRateInHz, Vertex_Processing_Behavior);
+
 	HRESULT hr=D3DInterface->CreateDevice
 	(
 		CurRenderDevice,
@@ -884,6 +875,7 @@ bool DX8Wrapper::Create_Device()
 
 	if (FAILED(hr))
 	{
+		fprintf(stderr, "ERROR: Create_Device() - CreateDevice failed hr=0x%08lX\n", (unsigned long)hr);
 		// The device selection may fail because the device lied that it supports 32 bit zbuffer with 16 bit
 		// display. This happens at least on Voodoo2.
 
@@ -1393,8 +1385,13 @@ bool DX8Wrapper::Set_Render_Device(int dev, int width, int height, int bits, int
 		/*
 		** Try to find a mode that matches the user's desired bit-depth.
 		*/
-		Find_Color_And_Z_Mode(ResolutionWidth,ResolutionHeight,BitDepth,&DisplayFormat,
+		// GeneralsX @build 22/07/2026 Instrument the fullscreen mode search - if no matching
+		// adapter mode exists, BackBufferFormat stays D3DFMT_UNKNOWN and CreateDevice fails.
+		bool foundMode = Find_Color_And_Z_Mode(ResolutionWidth,ResolutionHeight,BitDepth,&DisplayFormat,
 			&_PresentParameters.BackBufferFormat,&_PresentParameters.AutoDepthStencilFormat);
+		fprintf(stderr, "DEBUG: Set_Render_Device() - fullscreen Find_Color_And_Z_Mode(%dx%d bd=%d) -> found=%d backbuf=0x%X depth=0x%X\n",
+			ResolutionWidth, ResolutionHeight, BitDepth, foundMode,
+			_PresentParameters.BackBufferFormat, _PresentParameters.AutoDepthStencilFormat);
 	}
 
 	/*

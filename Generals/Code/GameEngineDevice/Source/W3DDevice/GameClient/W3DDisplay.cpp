@@ -975,6 +975,23 @@ void W3DDisplay::init()
 		}
 		while (attempt < 3 && renderDeviceError != WW3D_ERROR_OK);
 
+		// GeneralsX @bugfix 22/07/2026 Fullscreen device creation is fragile on native
+		// Windows (modern GPUs may not expose the requested resolution as an exact
+		// fullscreen mode). Rather than fail outright, fall back to windowed mode, which
+		// uses the current desktop display mode and is far more robust. This is a safety
+		// net only: it triggers when every fullscreen attempt above has already failed.
+		if (renderDeviceError != WW3D_ERROR_OK && getWindowed() == FALSE)
+		{
+			fprintf(stderr, "WARNING: W3DDisplay::init() - fullscreen render device failed; retrying windowed\n");
+			TheWritableGlobalData->m_windowed = true;
+			setWindowed( TRUE );
+			setWidth( TheGlobalData->m_xResolution );
+			setHeight( TheGlobalData->m_yResolution );
+			setBitDepth( DEFAULT_DISPLAY_BIT_DEPTH );
+			renderDeviceError = WW3D::Set_Render_Device(
+				0, getWidth(), getHeight(), getBitDepth(), getWindowed(), true );
+		}
+
 		if (renderDeviceError != WW3D_ERROR_OK)
 		{
 			WW3D::Shutdown();
