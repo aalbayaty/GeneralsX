@@ -30,6 +30,16 @@ else()
 endif()
 
 if(SAGE_USE_DX8)
+  # GeneralsX @build 22/07/2026 min-dx8-sdk's own CMake links d3d8lib against the
+  # bare name `d3dx8d` on 32-bit MinGW (the debug import library, whose DLL is not
+  # redistributable). Pre-defining an INTERFACE target with that name reroutes the
+  # reference to our from-source d3dx8 implementation (GeneralsMD/Code/CompatLib),
+  # removing the d3dx8d.dll runtime dependency.
+  if(MINGW)
+    add_library(d3dx8d INTERFACE)
+    target_link_libraries(d3dx8d INTERFACE d3dx8)
+  endif()
+
   # Windows: Fetch min-dx8-sdk for native DirectX 8
   FetchContent_Declare(
     dx8

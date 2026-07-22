@@ -3,7 +3,10 @@
 # GeneralsX @build felipebraz 20/06/2025 - Also build d3dx8 STATIC on macOS (D3DX math/texture stubs required for link)
 # GeneralsX @bugfix felipebraz 02/03/2026 - Build real d3dx8 STATIC on Linux too (D3DXGetFVFVertexSize / D3DXLoadSurfaceFromSurface required for link)
 # d3dx8 is a math/texture helper stub; core game code doesn't require it
-if((WIN32 AND CMAKE_SIZEOF_VOID_P EQUAL 8) OR APPLE OR (UNIX AND NOT APPLE))
+# GeneralsX @build 22/07/2026 Also build the real d3dx8 STATIC for MinGW: the MinGW
+# import library (d3dx8d) requires the non-redistributable SDK debug DLL at runtime,
+# so native Windows cross builds compile these D3DX functions from source instead.
+if((WIN32 AND CMAKE_SIZEOF_VOID_P EQUAL 8) OR APPLE OR (UNIX AND NOT APPLE) OR MINGW)
 list(APPEND SOURCE_D3DX_COMPAT
     d3dx8_compat.cpp
     d3dx8math.cpp
@@ -19,25 +22,65 @@ target_compile_definitions(d3dx8 PRIVATE GLM_ENABLE_EXPERIMENTAL)
 # TheSuperHackers @build 09/02/2025 Bender
 # Use vcpkg find_package (like fighter19) instead of FetchContent
 # This ensures compatible GLM/GLI versions via vcpkg baseline
-if(NOT SAGE_USE_GLM)
+# GeneralsX @build 22/07/2026 MinGW cross builds have no vcpkg; FetchContent the
+# header-only glm/gli instead.
+if(NOT SAGE_USE_GLM AND NOT MINGW)
     message(FATAL_ERROR "GLM is required for d3dx8 compatibility layer")
 endif()
 
-find_package(glm CONFIG REQUIRED)
+if(NOT TARGET glm::glm)
+    find_package(glm CONFIG QUIET)
+endif()
+if(NOT TARGET glm::glm)
+    include(FetchContent)
+    # 0.9.9.8: newest glm still API-compatible with gli 0.8.2 (gli is unmaintained;
+    # vcpkg pairs them via patches we don't carry here)
+    FetchContent_Declare(
+        glm
+        GIT_REPOSITORY https://github.com/g-truc/glm.git
+        GIT_TAG        0.9.9.8
+    )
+    FetchContent_MakeAvailable(glm)
+endif()
 target_link_libraries(d3dx8 PUBLIC glm::glm)
 
 # GeneralsX @build felipebraz 20/06/2025 GLI causes make_vec4 ambiguity with Apple Clang - only link on Windows
 if(NOT APPLE)
-    find_package(gli CONFIG REQUIRED)
+    if(NOT TARGET gli)
+        find_package(gli CONFIG QUIET)
+    endif()
+    if(NOT TARGET gli)
+        # gli is header-only; populate without add_subdirectory (its own CMake is dated)
+        include(FetchContent)
+        # Pinned gli master: the 0.8.2.0 (2016) release does not compile with modern
+        # glm/compilers; master carries the fixes (this matches what vcpkg patches in).
+        FetchContent_Declare(
+            gli_headers
+            GIT_REPOSITORY https://github.com/g-truc/gli.git
+            GIT_TAG        3542f8830178061e0661f5df1e89d36ba7d7b0ab
+        )
+        FetchContent_GetProperties(gli_headers)
+        if(NOT gli_headers_POPULATED)
+            FetchContent_Populate(gli_headers)
+        endif()
+        add_library(gli INTERFACE)
+        target_include_directories(gli INTERFACE ${gli_headers_SOURCE_DIR})
+    endif()
     target_link_libraries(d3dx8 PUBLIC gli)
 endif()
 
 # d3dx8 needs bittype.h from WWLib for Win32 types (DWORD, BYTE, UINT, etc.)
 # Add only WWLib directory (not full core_wwcommon to avoid d3d8.h conflicts from WWAudio)
-target_include_directories(d3dx8 PUBLIC 
-    ${CMAKE_CURRENT_SOURCE_DIR}/Include
-    ${CMAKE_SOURCE_DIR}/Core/Libraries/Source/WWVegas/WWLib
-)
+# GeneralsX @build 22/07/2026 On MinGW the CompatLib headers (fake windows.h) must not
+# be visible at all: the implementation compiles against the real SDK headers
+# (<windows.h> + min-dx8-sdk's d3dx8*.h via the d3d8lib link) so declarations and
+# definitions share one header world.
+if(NOT MINGW)
+    target_include_directories(d3dx8 PUBLIC
+        ${CMAKE_CURRENT_SOURCE_DIR}/Include
+        ${CMAKE_SOURCE_DIR}/Core/Libraries/Source/WWVegas/WWLib
+    )
+endif()
 
 # Link d3dx8 to d3d8lib to get DirectX8 headers (min-dx8-sdk or DXVK)
 target_link_libraries(d3dx8 PUBLIC d3d8lib)

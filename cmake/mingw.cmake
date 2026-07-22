@@ -74,18 +74,11 @@ if(MINGW)
     # are provided by Dependencies/Utility/Utility/comsupp_compat.h as header-only
     # implementations. No library linking required.
     
-    # MinGW-w64 compatibility: Create d3dx8 as an alias to d3dx8d
-    # MinGW-w64 only provides libd3dx8d.a (debug library), not libd3dx8.a
-    # The min-dx8-sdk (dx8.cmake) handles this correctly via d3d8lib interface target,
-    # but for compatibility with direct library references in main executables,
-    # we create an alias so that linking to d3dx8 automatically uses d3dx8d
-    if(NOT TARGET d3dx8)
-        add_library(d3dx8 INTERFACE IMPORTED GLOBAL)
-        set_target_properties(d3dx8 PROPERTIES
-            INTERFACE_LINK_LIBRARIES "d3dx8d"
-        )
-        message(STATUS "Created d3dx8 -> d3dx8d alias for MinGW-w64")
-    endif()
+    # GeneralsX @build 22/07/2026 The previous d3dx8 -> d3dx8d import-library alias is
+    # gone: MinGW's libd3dx8d.a requires the non-redistributable DX8 SDK debug DLL
+    # (d3dx8d.dll) at runtime. The real `d3dx8` STATIC target is now built from source
+    # by GeneralsMD/Code/CompatLib (GLM/GLI implementation, same code the macOS and
+    # Linux builds use), so executables carry no D3DX DLL dependency.
     
     message(STATUS "MinGW-w64 configuration complete")
 endif()

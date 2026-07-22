@@ -10,10 +10,8 @@
 #include <gli/generate_mipmaps.hpp>
 #endif
 
-HRESULT WINAPID3DXGetErrorStringA(HRESULT hr, LPSTR pBuffer, UINT BufferLen)
-{
-	return D3DERR_INVALIDCALL;
-}
+// GeneralsX @bugfix 22/07/2026 Removed a dead duplicate that was declared as one
+// token "WINAPID3DXGetErrorStringA" (missing space); the real definition lives below.
 
 HRESULT WINAPI
 D3DXCreateTexture(LPDIRECT3DDEVICE8 pDevice,
