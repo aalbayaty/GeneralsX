@@ -254,9 +254,9 @@ target_link_libraries(corei_gameenginedevice_public INTERFACE
 
 if(WIN32)
     target_link_libraries(corei_gameenginedevice_public INTERFACE
-        binkstub
+        ${GENERALSX_BINK_TARGET}
         d3d8lib
-        milesstub
+        ${GENERALSX_MILES_TARGET}
     )
 endif()
 

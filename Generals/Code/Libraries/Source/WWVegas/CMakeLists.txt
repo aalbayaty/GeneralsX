@@ -11,7 +11,7 @@ target_link_libraries(g_wwcommon INTERFACE
 # GeneralsX @build BenderAI 10/03/2026 Platform-specific multimedia stubs
 if(WIN32)
     target_link_libraries(g_wwcommon INTERFACE
-        milesstub
+        ${GENERALSX_MILES_TARGET}
     )
 endif()
 

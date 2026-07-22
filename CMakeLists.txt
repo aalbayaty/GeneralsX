@@ -60,9 +60,20 @@ if(MINGW)
 endif()
 
 # Find/Add build dependencies and stubs shared by all projects
+# GeneralsX @build 22/07/2026 Link targets for the Bink/Miles interfaces. MinGW links
+# import libraries matching the retail DLL export names instead of the stub targets
+# (whose auto-generated import libs record underscore-less names the retail DLLs
+# do not export) - see cmake/mingw-retail-implibs.cmake.
+set(GENERALSX_BINK_TARGET binkstub)
+set(GENERALSX_MILES_TARGET milesstub)
 if((WIN32 OR "${CMAKE_SYSTEM}" MATCHES "Windows") AND ${CMAKE_SIZEOF_VOID_P} EQUAL 4)
     include(cmake/miles.cmake)
     include(cmake/bink.cmake)
+    include(cmake/mingw-retail-implibs.cmake)
+    if(MINGW)
+        set(GENERALSX_BINK_TARGET bink_retail)
+        set(GENERALSX_MILES_TARGET miles_retail)
+    endif()
 endif()
 
 # Always include DX8 headers (needed for both Windows and Linux builds)

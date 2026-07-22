@@ -12,13 +12,13 @@ endif()
 # GeneralsX @build BenderAI 10/03/2026 Windows-specific libraries
 if(WIN32)
     target_link_libraries(g_generals PRIVATE
-        binkstub
+        ${GENERALSX_BINK_TARGET}
         comctl32
         d3d8
         dinput8
         dxguid
         imm32
-        milesstub
+        ${GENERALSX_MILES_TARGET}
         vfw32
         winmm
     )
