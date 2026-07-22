@@ -89,10 +89,13 @@ jobs:
       preset: macos-vulkan
     secrets: inherit
 
+  # GeneralsX @build 22/07/2026 Replay tests need the private game-assets repo
+  # (secrets.ASSETS_KEY), which forks don't have. Run them only on the upstream repo;
+  # on forks they skip (not fail) so CI stays green.
   replay-test-linux:
     name: Replay Tests (linux)
     needs: [build-linux-flatpak]
-    if: needs.build-linux-flatpak.result == 'success'
+    if: github.repository == 'fbraz3/GeneralsX' && needs.build-linux-flatpak.result == 'success'
     uses: ./.github/workflows/replay-tests.yml
     with:
       platform: linux-flatpak
@@ -103,7 +106,7 @@ jobs:
   replay-test-macos:
     name: Replay Tests (macos)
     needs: [build-macos]
-    if: needs.build-macos.result == 'success'
+    if: github.repository == 'fbraz3/GeneralsX' && needs.build-macos.result == 'success'
     uses: ./.github/workflows/replay-tests.yml
     with:
       platform: macos
