@@ -1,0 +1,50 @@
+# GeneralsX @build 22/07/2026
+# Keeps the fork's Windows (MinGW) build in parity with upstream GeneralsX releases.
+#
+# GitHub cannot deliver upstream release events into a fork, so this polls the original
+# GeneralsX (fbraz3/GeneralsX) on a schedule. When it finds an upstream release that this
+# fork has no Windows build for yet, it builds and publishes a matching release. The
+# underlying script is idempotent, so every run after that is a cheap no-op.
+#
+# Prerequisites (one-time, on the fork):
+#   1. Enable Actions:  Settings -> Actions -> General -> Allow all actions.
+#   2. This file must live on the fork's DEFAULT branch for the schedule to fire.
+#   3. Give Actions write access:  Settings -> Actions -> General -> Workflow permissions
+#      -> Read and write permissions.
+name: Windows Parity Release
+
+on:
+  schedule:
+    - cron: '0 */6 * * *'   # every 6 hours
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Upstream release tag to build (blank = latest)'
+        required: false
+        default: ''
+
+concurrency:
+  group: windows-parity-release
+  cancel-in-progress: false
+
+jobs:
+  build-and-release:
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write   # create/update releases on this fork
+    steps:
+      - name: Checkout fork
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0   # full history + tags for worktree builds
+
+      - name: Build and publish Windows parity release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          UPSTREAM_REPO: fbraz3/GeneralsX
+          FORK_REPO: ${{ github.repository }}
+          FIXES_REF: fix/mingw-docker-widl
+          PRESET: mingw-w64-i686
+        run: |
+          chmod +x scripts/release/windows-parity-release.sh
+          ./scripts/release/windows-parity-release.sh "${{ github.event.inputs.tag }}"
