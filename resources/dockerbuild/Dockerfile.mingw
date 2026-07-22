@@ -2,7 +2,9 @@
 # Base image for cross-compiling GeneralsX/GeneralsXZH Windows binaries
 # Platform: MinGW-w64 (i686 and x86_64 targets)
 
-FROM ubuntu:22.04
+# GeneralsX @build 22/07/2026 24.04 ships MinGW GCC 13: needed for C++20 float
+# std::from_chars (INI parsing, determinism-critical) and atomic wait/notify.
+FROM ubuntu:24.04
 
 LABEL maintainer="GeneralsX Project"
 LABEL description="MinGW cross-compile environment for GeneralsX (Windows .exe on Linux)"
