@@ -25,6 +25,16 @@ target_sources(corei_libraries_include PRIVATE
     Libraries/Include/rts/debug.h
     Libraries/Include/rts/profile.h
 )
+# GeneralsX @build 12/08/2026 Many sources still include WWLib headers unqualified
+# ("win.h", "PchCompat.h", "registryini.h", ...). On mac/linux those resolve through
+# CompatLib's include dirs (attached to the game-level *_always targets for NOT WIN32),
+# which native Windows builds exclude; expose WWLib here the same way so the MinGW
+# build resolves them identically across all targets.
+if(WIN32)
+    target_include_directories(corei_always INTERFACE "Libraries/Source/WWVegas/WWLib")
+    target_include_directories(corei_always_no_pch INTERFACE "Libraries/Source/WWVegas/WWLib")
+endif()
+
 target_link_libraries(corei_always INTERFACE
     core_config
     core_profile_tracy
