@@ -198,7 +198,12 @@ if(WIN32)
         Include/Win32Device/Common/Win32LocalFileSystem.h
         Source/Win32Device/Common/Win32LocalFile.cpp
         Source/Win32Device/Common/Win32LocalFileSystem.cpp
-#        Source/Win32Device/Common/Win32OSDisplay.cpp
+        # GeneralsX @build 12/08/2026 Win32GameEngine/Win32OSDisplay were unified into
+        # Core by upstream (#3046) but never added to a WIN32 source list (upstream only
+        # builds mac/linux); compile them here for the MinGW Windows build.
+        Include/Win32Device/Common/Win32GameEngine.h
+        Source/Win32Device/Common/Win32GameEngine.cpp
+        Source/Win32Device/Common/Win32OSDisplay.cpp
         # GeneralsX @build 22/07/2026 Compile Win32 input from Core like upstream;
         # game-level CMakeLists reference these paths but the files live here.
         Include/Win32Device/GameClient/Win32DIKeyboard.h

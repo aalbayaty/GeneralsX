@@ -178,10 +178,12 @@ if(WIN32)
         # GeneralsX @build 22/07/2026 Win32CDManager was removed (upstream dropped CD checks);
         # Win32DIKeyboard/Win32Mouse live in Core (compiled there, like upstream)
 #       Source/Win32Device/Common/Win32CDManager.cpp
-        Source/Win32Device/Common/Win32GameEngine.cpp
+        # GeneralsX @build 12/08/2026 Win32GameEngine/Win32OSDisplay moved to Core
+        # by upstream (#3046) and are compiled from Core's WIN32 list.
+#       Source/Win32Device/Common/Win32GameEngine.cpp
 #       Source/Win32Device/Common/Win32LocalFile.cpp
 #       Source/Win32Device/Common/Win32LocalFileSystem.cpp
-        Source/Win32Device/Common/Win32OSDisplay.cpp
+#       Source/Win32Device/Common/Win32OSDisplay.cpp
 #       Source/Win32Device/GameClient/Win32DIKeyboard.cpp
 #       Source/Win32Device/GameClient/Win32Mouse.cpp
     )
