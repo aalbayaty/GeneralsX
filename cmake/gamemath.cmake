@@ -50,6 +50,19 @@ if(SAGE_USE_DETERMINISTIC_MATH)
     # to prevent one-definition-rule violations and ensure USE_DETERMINISTIC_MATH activates consistently.
     include_directories(${gamemath_SOURCE_DIR}/include)
 
+    # GeneralsX @bugfix 12/08/2026 Actually activate the deterministic dispatch on Windows.
+    # USE_DETERMINISTIC_MATH was never defined on any target, so the WWMath trig/sqrt
+    # gateways silently fell back to the platform CRT everywhere. On glibc/Apple libm the
+    # native float trig is correctly rounded, so mac/linux agree with each other (and with
+    # fdlibm) without the define — and upstream ships those builds without it, so defining
+    # it there would break CRC parity with upstream binaries. msvcrt's x87 trig is NOT
+    # correctly rounded and desyncs cross-platform play (tunnel-evacuate desync, frame-level
+    # CRC fork), so Windows builds must dispatch to fdlibm to match the other platforms.
+    if(WIN32)
+        target_compile_definitions(core_config INTERFACE USE_DETERMINISTIC_MATH)
+        target_link_libraries(core_config INTERFACE gamemath)
+    endif()
+
     message(STATUS "GameMath deterministic math enabled (fdlibm backend)")
     message(STATUS "  Math operations will be bit-exact across platforms")
     message(STATUS "  Performance: Slightly slower than CRT but guarantees replay determinism")
