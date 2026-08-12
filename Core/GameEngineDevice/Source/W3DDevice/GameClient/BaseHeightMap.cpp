@@ -76,7 +76,6 @@
 #include "W3DDevice/GameClient/W3DRoadBuffer.h"
 #include "W3DDevice/GameClient/W3DBridgeBuffer.h"
 #include "W3DDevice/GameClient/W3DWaypointBuffer.h"
-#include "W3DDevice/GameClient/W3DCustomEdging.h"
 #include "W3DDevice/GameClient/WorldHeightMap.h"
 #include "W3DDevice/GameClient/W3DShaderManager.h"
 #include "W3DDevice/GameClient/W3DShadow.h"
@@ -312,6 +311,14 @@ BaseHeightMapRenderObjClass::BaseHeightMapRenderObjClass()
 	DX8Wrapper::SetCleanupHook(this);
 }
 
+void BaseHeightMapRenderObjClass::scheduleFullUpdate()
+{
+	m_needFullUpdate = true;
+	if (TheTacticalView) {
+		TheTacticalView->onHeightMapChanged();
+	}
+}
+
 void BaseHeightMapRenderObjClass::setTextureLOD(Int lod)
 {
 	if (m_treeBuffer)
@@ -454,7 +461,7 @@ void BaseHeightMapRenderObjClass::ReAcquireResources()
 	{
 		this->initHeightData(m_x,m_y,m_map, nullptr);
 		// Tell lights to update next time through.
-		m_needFullUpdate = true;
+		scheduleFullUpdate();
 	}
 
 	if (m_treeBuffer) {
@@ -496,7 +503,7 @@ static lights into account as well.  It is possible to just use the normal in th
 vertex and let D3D do the lighting, but it is slower to render, and can only
 handle 4 lights at this point. */
 //=============================================================================
-void BaseHeightMapRenderObjClass::doTheLight(VERTEX_FORMAT *vb, Vector3*light, Vector3*normal, RefRenderObjListIterator *pLightsIterator, UnsignedByte alpha)
+void BaseHeightMapRenderObjClass::doTheLight(VERTEX_FORMAT *vb, const Vector3*light, Vector3*normal, RefRenderObjListIterator *pLightsIterator, UnsignedByte alpha)
 {
 #ifdef USE_NORMALS
 	vb->nx = normal->X;
@@ -631,9 +638,6 @@ void BaseHeightMapRenderObjClass::reset()
 		m_propBuffer->clearAllProps();
 	}
 	clearAllScorches();
-#ifdef TEST_CUSTOM_EDGING
-	m_customEdging ->clearAllEdging();
-#endif
 #ifdef DO_ROADS
 	if (m_roadBuffer) {
 		m_roadBuffer->clearAllRoads();
@@ -1825,7 +1829,7 @@ Int BaseHeightMapRenderObjClass::initHeightData(Int x, Int y, WorldHeightMap *pM
 	}
 
 	Set_Force_Visible(TRUE);	//terrain is always visible.
-	m_needFullUpdate = true;
+	scheduleFullUpdate();
 
 	m_scorchesInBuffer = 0;
 	m_curNumScorchVertices=0;
@@ -2354,7 +2358,7 @@ void BaseHeightMapRenderObjClass::removeTerrainBibDrawable(DrawableID id)
 void BaseHeightMapRenderObjClass::staticLightingChanged()
 {
 	// Cause the terrain to get updated with new lighting.
-	m_needFullUpdate = true;
+	scheduleFullUpdate();
 
 	// Cause the scorches to get updated with new lighting.
 	m_scorchesInBuffer = 0; // If we just allocated the buffers, we got no scorches in the buffer.

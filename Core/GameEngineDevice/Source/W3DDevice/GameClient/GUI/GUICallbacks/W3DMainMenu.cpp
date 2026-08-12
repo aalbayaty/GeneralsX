@@ -1,5 +1,5 @@
 /*
-**	Command & Conquer Generals(tm)
+**	Command & Conquer Generals Zero Hour(tm)
 **	Copyright 2025 Electronic Arts Inc.
 **
 **	This program is free software: you can redistribute it and/or modify
@@ -46,9 +46,11 @@
 //-----------------------------------------------------------------------------
 // SYSTEM INCLUDES ////////////////////////////////////////////////////////////
 //-----------------------------------------------------------------------------
+#ifdef _WIN32
 #define WIN32_LEAN_AND_MEAN
 #include <windows.h>
 #include <mmsystem.h>
+#endif
 #include <time.h>
 //-----------------------------------------------------------------------------
 // USER INCLUDES //////////////////////////////////////////////////////////////
@@ -71,6 +73,7 @@
 #include "W3DDevice/GameClient/W3DGadget.h"
 
 #include "GameClient/GUICallbacks.h"
+#include "Common/version.h"
 
 // forward declaration for credit draw added by GeneralsX
 extern void W3DGeneralsXCreditDraw( GameWindow *window, WinInstanceData *instData );
@@ -361,7 +364,7 @@ void W3DMetalBarMenuDraw( GameWindow *window, WinInstanceData *instData )
 //	//TheDisplay->drawLine();
 //
 
- 
+
 void W3DClockDraw( GameWindow *window, WinInstanceData *instData )
 {
 	W3DGameWinDefaultDraw( window, instData );
@@ -412,14 +415,16 @@ void W3DClockDraw( GameWindow *window, WinInstanceData *instData )
 
 void W3DGeneralsXCreditDraw( GameWindow *window, WinInstanceData *instData )
 {
-	// GeneralsX @bugfix BenderAI 31/03/2026 Avoid per-frame throttle so late callbacks (clock path) can redraw above menu layers.
-
 	// GeneralsX @bugfix BenderAI 31/03/2026 Reuse callback instance text display string to avoid static managed DisplayString lifetime leaks.
 	if (!instData)
 		return;
 
 	UnicodeString ucredit;
-	ucredit.translate("GeneralsX - Multiplatform C&C Generals");
+	if (TheVersion) {
+		ucredit = TheVersion->getUnicodeProjectWatermark();
+	} else {
+		ucredit.translate("GeneralsX - Multiplatform C&C Generals");
+	}
 	instData->setText(ucredit);
 
 	DisplayString *dString = instData->getTextDisplayString();
