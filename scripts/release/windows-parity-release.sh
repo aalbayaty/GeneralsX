@@ -59,32 +59,29 @@ if gh release view "$TAG" --repo "$FORK_REPO" --json assets \
 fi
 echo "🆕 ${FORK_REPO} has no Windows build for ${TAG} yet — building."
 
-# ---- Fetch the Windows build fixes ------------------------------------------
+# ---- Build in an isolated clone: upstream tag (+ fixes) ----------------------
+# GeneralsX @build 12/08/2026 A standalone clone, NOT `git worktree`: the Docker
+# build mounts only this directory, and a worktree's .git is a pointer file back
+# into the parent repo, so git metadata is invisible inside the container and
+# gitinfo cannot stamp GitTag/GitCommitTimeStamp (the in-game updater needs both).
+WORKTREE="$(mktemp -d "${TMPDIR:-/tmp}/genx-release-XXXXXX")"
+
+cleanup() {
+	rm -rf "$WORKTREE" 2>/dev/null || true
+}
+trap cleanup EXIT
+
+echo "🌱 Cloning build tree at ${TAG}..."
+git clone --quiet "$repo_root" "$WORKTREE"
+
+pushd "$WORKTREE" >/dev/null
+git checkout --quiet -b "release-build/${TAG}" "refs/tags/${TAG}"
+
 FIXES_SHA=""
 if [[ -n "$FIXES_REF" ]]; then
 	echo "🔧 Fetching Windows build fixes (${FORK_REPO}:${FIXES_REF})..."
 	git fetch --quiet "https://github.com/${FORK_REPO}.git" "$FIXES_REF"
 	FIXES_SHA="$(git rev-parse FETCH_HEAD)"
-fi
-
-# ---- Build in an isolated worktree: upstream tag (+ fixes) -------------------
-WORKTREE="$(mktemp -d "${TMPDIR:-/tmp}/genx-release-XXXXXX")"
-BUILD_BRANCH="release-build/${TAG}"
-git branch -D "$BUILD_BRANCH" >/dev/null 2>&1 || true
-
-cleanup() {
-	git worktree remove --force "$WORKTREE" >/dev/null 2>&1 || true
-	git branch -D "$BUILD_BRANCH" >/dev/null 2>&1 || true
-	rm -rf "$WORKTREE" 2>/dev/null || true
-}
-trap cleanup EXIT
-
-echo "🌱 Creating build worktree at ${TAG}..."
-git worktree add --quiet -b "$BUILD_BRANCH" "$WORKTREE" "refs/tags/${TAG}"
-
-pushd "$WORKTREE" >/dev/null
-
-if [[ -n "$FIXES_SHA" ]]; then
 	echo "🔧 Merging Windows build fixes (${FIXES_SHA:0:9}) onto ${TAG}..."
 	if ! git -c user.name="GeneralsX Release Bot" -c user.email="release@localhost" \
 			merge --no-edit "$FIXES_SHA"; then
