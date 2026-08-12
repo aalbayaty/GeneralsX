@@ -93,6 +93,12 @@ if [[ -n "$FIXES_SHA" ]]; then
 		echo "   '${FIXES_REF}' onto ${TAG} manually, then re-run." >&2
 		exit 2
 	fi
+	# Point the release tag at the merge commit locally (never pushed) so gitinfo's
+	# `git describe --exact-match` stamps GitTag=${TAG} into the binary. The in-game
+	# update checker then recognizes the fork release by exact tag match instead of
+	# false-flagging its own release via the published_at-vs-commit-time comparison
+	# (the merge commit necessarily predates the release publication by minutes).
+	git tag -f "$TAG" >/dev/null
 fi
 
 echo "🐳 Building Windows binary (preset ${PRESET})..."

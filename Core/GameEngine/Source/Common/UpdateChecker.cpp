@@ -18,7 +18,9 @@
 
 // FILE: UpdateChecker.cpp ////////////////////////////////////////////////
 // GeneralsX @feature BenderAI 21/04/2026 Non-blocking update checker via
-// GitHub Releases API. Only active for tagged release builds with SAGE_USE_SDL3.
+// GitHub Releases API. Active for tagged release builds: SDL3+libcurl on
+// Linux/macOS, WinHTTP+std::thread on Windows (MinGW parity builds link
+// neither SDL3 nor libcurl).
 
 #ifdef SAGE_UPDATE_CHECK
 
@@ -27,17 +29,57 @@
 
 #include "gitinfo.h"
 
+#if defined(_WIN32)
+// GeneralsX @feature 12/08/2026 Native Windows backend for the MinGW build.
+#include <windows.h>
+#include <winhttp.h>
+#include <shellapi.h>
+#include <atomic>
+#include <thread>
+#include <stdlib.h>
+#else
 #include <SDL3/SDL.h>
 #include <curl/curl.h>
+#endif
 
+#include <stdio.h>
 #include <string.h>
 #include <string>
+#include <time.h>
+
+// ---------------------------------------------------------------------------
+// GeneralsX @feature 12/08/2026 Repository the updater checks against.
+// Windows binaries are published as parity releases on the fork (upstream
+// releases carry no Windows asset), so the Windows build checks the fork.
+// ---------------------------------------------------------------------------
+#if defined(_WIN32)
+#define UPDATE_RELEASES_REPO "aalbayaty/GeneralsX"
+#else
+#define UPDATE_RELEASES_REPO "fbraz3/GeneralsX"
+#endif
+
+#if defined(_WIN32)
+// ---------------------------------------------------------------------------
+// GeneralsX @feature 12/08/2026 Thread/atomic/env shims so the shared logic
+// below reads identically to the SDL3 path (same pattern as the repo's other
+// platform compat shims).
+// ---------------------------------------------------------------------------
+#define SDLCALL
+typedef std::atomic<int> SDL_AtomicInt;
+static int  SDL_GetAtomicInt(SDL_AtomicInt* a)        { return a->load(); }
+static void SDL_SetAtomicInt(SDL_AtomicInt* a, int v) { a->store(v); }
+static const char* SDL_getenv(const char* name)       { return getenv(name); }
+#endif
 
 // ---------------------------------------------------------------------------
 // File-static implementation state (not exposed in the header to avoid
 // leaking SDL3 includes to every consumer of UpdateChecker.h)
 // ---------------------------------------------------------------------------
+#if defined(_WIN32)
+static bool          s_started   = false;
+#else
 static SDL_Thread*   s_thread    = nullptr;
+#endif
 // s_done defaults to 1 ("already done / not started") so poll() returns
 // false immediately on early-return paths in start() that never launch a
 // thread. It is reset to 0 just before the thread is created.
@@ -50,9 +92,23 @@ static char          s_latestTag[128] = {0};
 // ---------------------------------------------------------------------------
 const char* UpdateChecker::getReleasesUrl()
 {
-    return "https://api.github.com/repos/fbraz3/GeneralsX/releases/latest";
+    return "https://api.github.com/repos/" UPDATE_RELEASES_REPO "/releases/latest";
 }
 
+// ---------------------------------------------------------------------------
+// Open the releases page of the repo this build updates from
+// ---------------------------------------------------------------------------
+void UpdateChecker::openReleasesPage()
+{
+#if defined(_WIN32)
+    ::ShellExecuteA(nullptr, "open", "https://github.com/" UPDATE_RELEASES_REPO "/releases",
+                    nullptr, nullptr, SW_SHOWNORMAL);
+#else
+    SDL_OpenURL("https://github.com/" UPDATE_RELEASES_REPO "/releases");
+#endif
+}
+
+#if !defined(_WIN32)
 // ---------------------------------------------------------------------------
 // libcurl write callback: accumulates response body into a std::string*
 // ---------------------------------------------------------------------------
@@ -66,6 +122,111 @@ static size_t curlWriteCallback(char* ptr, size_t size, size_t nmemb, void* user
     body->append(ptr, total);
     return total;
 }
+#endif
+
+// ---------------------------------------------------------------------------
+// HTTP GET of the releases-API endpoint into responseBody.
+// Returns false on any network/TLS error (caller fails silently).
+// ---------------------------------------------------------------------------
+#if defined(_WIN32)
+static bool fetchLatestReleaseJson(std::string& responseBody)
+{
+    // GeneralsX @feature 12/08/2026 WinHTTP implementation: TLS via schannel,
+    // no third-party dependencies in the MinGW cross build.
+    bool ok = false;
+    HINTERNET hSession = WinHttpOpen(L"GeneralsX/update-checker",
+        WINHTTP_ACCESS_TYPE_DEFAULT_PROXY, WINHTTP_NO_PROXY_NAME, WINHTTP_NO_PROXY_BYPASS, 0);
+    if (!hSession)
+        return false;
+    // resolve / connect / send / receive timeouts (ms), matching the curl path
+    WinHttpSetTimeouts(hSession, 5000, 5000, 8000, 8000);
+
+    HINTERNET hConnect = WinHttpConnect(hSession, L"api.github.com", INTERNET_DEFAULT_HTTPS_PORT, 0);
+    HINTERNET hRequest = nullptr;
+    if (hConnect)
+    {
+        hRequest = WinHttpOpenRequest(hConnect, L"GET",
+            L"/repos/" UPDATE_RELEASES_REPO L"/releases/latest",
+            nullptr, WINHTTP_NO_REFERER, WINHTTP_DEFAULT_ACCEPT_TYPES, WINHTTP_FLAG_SECURE);
+    }
+    if (hRequest)
+    {
+        const wchar_t* headers =
+            L"Accept: application/vnd.github+json\r\n"
+            L"X-GitHub-Api-Version: 2022-11-28\r\n";
+        if (WinHttpSendRequest(hRequest, headers, (DWORD)-1,
+                               WINHTTP_NO_REQUEST_DATA, 0, 0, 0)
+            && WinHttpReceiveResponse(hRequest, nullptr))
+        {
+            DWORD status = 0;
+            DWORD statusSize = sizeof(status);
+            WinHttpQueryHeaders(hRequest,
+                WINHTTP_QUERY_STATUS_CODE | WINHTTP_QUERY_FLAG_NUMBER,
+                WINHTTP_HEADER_NAME_BY_INDEX, &status, &statusSize, WINHTTP_NO_HEADER_INDEX);
+            if (status == 200)
+            {
+                char buf[4096];
+                DWORD read = 0;
+                ok = true;
+                while (WinHttpReadData(hRequest, buf, sizeof(buf), &read) && read > 0)
+                {
+                    // Guard against enormous responses (GitHub API is < 32 KB in practice)
+                    if (responseBody.size() + read > 65536)
+                    {
+                        ok = false;
+                        break;
+                    }
+                    responseBody.append(buf, read);
+                }
+            }
+        }
+    }
+
+    if (hRequest) WinHttpCloseHandle(hRequest);
+    if (hConnect) WinHttpCloseHandle(hConnect);
+    WinHttpCloseHandle(hSession);
+
+    fprintf(stderr, "[UpdateChecker] WinHTTP fetch %s. Response length=%zu\n",
+            ok ? "succeeded" : "failed", responseBody.length());
+    fflush(stderr);
+    return ok && !responseBody.empty();
+}
+#else
+static bool fetchLatestReleaseJson(std::string& responseBody)
+{
+    CURL* curl = curl_easy_init();
+    if (!curl)
+        return false;
+
+    curl_easy_setopt(curl, CURLOPT_URL, UpdateChecker::getReleasesUrl());
+    curl_easy_setopt(curl, CURLOPT_USERAGENT, "GeneralsX/update-checker");
+    curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, curlWriteCallback);
+    curl_easy_setopt(curl, CURLOPT_WRITEDATA, &responseBody);
+    curl_easy_setopt(curl, CURLOPT_TIMEOUT, 8L);         // total timeout (s)
+    curl_easy_setopt(curl, CURLOPT_CONNECTTIMEOUT, 5L);  // connect timeout (s)
+    curl_easy_setopt(curl, CURLOPT_FOLLOWLOCATION, 1L);
+    curl_easy_setopt(curl, CURLOPT_SSL_VERIFYPEER, 1L);
+    curl_easy_setopt(curl, CURLOPT_SSL_VERIFYHOST, 2L);
+    // Prevent libcurl from using process-wide POSIX signals in multi-threaded builds.
+    // Required whenever curl is used from a non-main thread.
+    curl_easy_setopt(curl, CURLOPT_NOSIGNAL, 1L);
+
+    struct curl_slist* headers = nullptr;
+    headers = curl_slist_append(headers, "Accept: application/vnd.github+json");
+    headers = curl_slist_append(headers, "X-GitHub-Api-Version: 2022-11-28");
+    curl_easy_setopt(curl, CURLOPT_HTTPHEADER, headers);
+
+    CURLcode res = curl_easy_perform(curl);
+
+    curl_slist_free_all(headers);
+    curl_easy_cleanup(curl);
+
+    fprintf(stderr, "[UpdateChecker] curl_easy_perform returned %d. Response length=%zu\n", (int)res, responseBody.length());
+    fflush(stderr);
+
+    return res == CURLE_OK;
+}
+#endif
 
 // ---------------------------------------------------------------------------
 // Published-date extractor: parses "published_at": "VALUE" from JSON.
@@ -152,40 +313,7 @@ static int SDLCALL threadFunc(void* /*userData*/)
 {
     std::string responseBody;
 
-    CURL* curl = curl_easy_init();
-    if (!curl)
-    {
-        SDL_SetAtomicInt(&s_done, 1);
-        return 0;
-    }
-
-    curl_easy_setopt(curl, CURLOPT_URL, UpdateChecker::getReleasesUrl());
-    curl_easy_setopt(curl, CURLOPT_USERAGENT, "GeneralsX/update-checker");
-    curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, curlWriteCallback);
-    curl_easy_setopt(curl, CURLOPT_WRITEDATA, &responseBody);
-    curl_easy_setopt(curl, CURLOPT_TIMEOUT, 8L);         // total timeout (s)
-    curl_easy_setopt(curl, CURLOPT_CONNECTTIMEOUT, 5L);  // connect timeout (s)
-    curl_easy_setopt(curl, CURLOPT_FOLLOWLOCATION, 1L);
-    curl_easy_setopt(curl, CURLOPT_SSL_VERIFYPEER, 1L);
-    curl_easy_setopt(curl, CURLOPT_SSL_VERIFYHOST, 2L);
-    // Prevent libcurl from using process-wide POSIX signals in multi-threaded builds.
-    // Required whenever curl is used from a non-main thread.
-    curl_easy_setopt(curl, CURLOPT_NOSIGNAL, 1L);
-
-    struct curl_slist* headers = nullptr;
-    headers = curl_slist_append(headers, "Accept: application/vnd.github+json");
-    headers = curl_slist_append(headers, "X-GitHub-Api-Version: 2022-11-28");
-    curl_easy_setopt(curl, CURLOPT_HTTPHEADER, headers);
-
-    CURLcode res = curl_easy_perform(curl);
-
-    curl_slist_free_all(headers);
-    curl_easy_cleanup(curl);
-
-    fprintf(stderr, "[UpdateChecker] curl_easy_perform returned %d. Response length=%zu\n", (int)res, responseBody.length());
-    fflush(stderr);
-
-    if (res != CURLE_OK)
+    if (!fetchLatestReleaseJson(responseBody))
     {
         // Network error: fail silently
         SDL_SetAtomicInt(&s_done, 1);
@@ -282,8 +410,13 @@ static int SDLCALL threadFunc(void* /*userData*/)
 void UpdateChecker::start()
 {
     // Only run once per session
+#if defined(_WIN32)
+    if (s_started)
+        return;
+#else
     if (s_thread != nullptr)
         return;
+#endif
 
     // GeneralsX @bugfix GitHubCopilot 07/05/2026 Accept clean release builds that
     // provide either an exact tag OR a valid commit timestamp (tag may be empty in
@@ -318,14 +451,28 @@ void UpdateChecker::start()
     SDL_SetAtomicInt(&s_hasUpdate, 0);
     s_latestTag[0] = '\0';
 
+    fprintf(stderr, "[UpdateChecker] Launching background thread to check %s\n", UpdateChecker::getReleasesUrl());
+    fflush(stderr);
+
+#if defined(_WIN32)
+    // Detached std::thread; we communicate via the atomics (s_done / s_hasUpdate)
+    // instead of joining.
+    s_started = true;
+    try
+    {
+        std::thread(threadFunc, nullptr).detach();
+    }
+    catch (...)
+    {
+        // Thread creation failed; fail silently
+        SDL_SetAtomicInt(&s_done, 1);
+    }
+#else
     // Must be called once on the main thread before any curl handle is created.
     // curl_global_cleanup() is intentionally omitted: the game process handles
     // cleanup on exit and there is no safe single-owner shutdown hook here.
     curl_global_init(CURL_GLOBAL_DEFAULT);
 
-    fprintf(stderr, "[UpdateChecker] Launching background thread to check %s\n", UpdateChecker::getReleasesUrl());
-    fflush(stderr);
-    
     s_thread = SDL_CreateThread(threadFunc, "UpdateChecker", nullptr);
     if (!s_thread)
     {
@@ -336,6 +483,7 @@ void UpdateChecker::start()
     // Detach the thread so SDL frees its resources automatically when it exits.
     // We communicate via SDL_AtomicInt (s_done / s_hasUpdate) instead of joining.
     SDL_DetachThread(s_thread);
+#endif
 }
 
 // ---------------------------------------------------------------------------

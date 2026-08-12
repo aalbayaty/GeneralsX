@@ -76,7 +76,6 @@
 #ifdef SAGE_UPDATE_CHECK
 #include "Common/UpdateChecker.h"
 #include "GameClient/GadgetPushButton.h"
-#include <SDL3/SDL.h>
 #endif
 
 
@@ -1509,7 +1508,7 @@ WindowMsgHandledType MainMenuSystem( GameWindow *window, UnsignedInt msg,
 			else if( controlID == getUpdateID )
 			{
 #ifdef SAGE_UPDATE_CHECK
-				SDL_OpenURL("https://github.com/fbraz3/GeneralsX/releases");
+				UpdateChecker::openReleasesPage();
 #else
 				StartDownloadingPatches();
 #endif
@@ -1518,7 +1517,7 @@ WindowMsgHandledType MainMenuSystem( GameWindow *window, UnsignedInt msg,
 			else if( updateNotifyButton != nullptr && control == updateNotifyButton )
 			{
 				// GeneralsX @feature BenderAI 21/04/2026 Dynamic update button click -> open releases page
-				SDL_OpenURL("https://github.com/fbraz3/GeneralsX/releases");
+				UpdateChecker::openReleasesPage();
 			}
 #endif
 			else if( controlID == exitID )

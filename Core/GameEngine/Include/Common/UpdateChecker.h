@@ -52,6 +52,10 @@ public:
 
     // GitHub repository used for the API query.
     static const char* getReleasesUrl();
+
+    // Open the releases page of the repository this build updates from in the
+    // system browser (SDL_OpenURL on SDL3 builds, ShellExecute on Windows).
+    static void openReleasesPage();
 };
 
 #endif // SAGE_UPDATE_CHECK

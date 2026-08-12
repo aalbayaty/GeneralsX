@@ -16,11 +16,17 @@ option(SAGE_USE_SDL3 "Use SDL3 for windowing/input (Linux/macOS)" OFF)
 option(SAGE_USE_OPENAL "Use OpenAL for audio backend (Linux/macOS)" OFF)
 option(SAGE_USE_MINIAUDIO "Use MiniAudio for audio backend (Linux/macOS)" OFF)
 
-# GeneralsX @feature BenderAI 21/04/2026 In-game update checker via GitHub Releases API (SDL3+libcurl builds only)
-# Default ON when SDL3 is enabled, but only if the user has not explicitly set SAGE_UPDATE_CHECK.
+# GeneralsX @feature BenderAI 21/04/2026 In-game update checker via GitHub Releases API.
+# Default ON for SDL3 builds (Linux/macOS, libcurl backend) and for MinGW Windows
+# builds (WinHTTP backend), but only if the user has not explicitly set SAGE_UPDATE_CHECK.
 # An explicit -DSAGE_UPDATE_CHECK=OFF on the cmake command line is always respected.
+# MSVC/VC6 builds keep the default OFF (untested there; WinHTTP path needs std::thread).
 if(NOT DEFINED CACHE{SAGE_UPDATE_CHECK})
-    set(SAGE_UPDATE_CHECK "${SAGE_USE_SDL3}" CACHE BOOL "Enable in-game update check via GitHub Releases API")
+    if(SAGE_USE_SDL3 OR MINGW)
+        set(SAGE_UPDATE_CHECK ON CACHE BOOL "Enable in-game update check via GitHub Releases API")
+    else()
+        set(SAGE_UPDATE_CHECK OFF CACHE BOOL "Enable in-game update check via GitHub Releases API")
+    endif()
 endif()
 
 # macOS port option (Phase 5)
