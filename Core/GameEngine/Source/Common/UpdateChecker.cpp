@@ -31,8 +31,11 @@
 
 #if defined(_WIN32)
 // GeneralsX @feature 12/08/2026 Native Windows backend for the MinGW build.
+// WinInet (not WinHTTP): winhttp.h conflicts with wininet.h, which the engine's
+// precompiled header already pulls into every TU; WinInet is also the API
+// Microsoft recommends for interactive client apps.
 #include <windows.h>
-#include <winhttp.h>
+#include <wininet.h>
 #include <shellapi.h>
 #include <atomic>
 #include <thread>
@@ -131,62 +134,53 @@ static size_t curlWriteCallback(char* ptr, size_t size, size_t nmemb, void* user
 #if defined(_WIN32)
 static bool fetchLatestReleaseJson(std::string& responseBody)
 {
-    // GeneralsX @feature 12/08/2026 WinHTTP implementation: TLS via schannel,
+    // GeneralsX @feature 12/08/2026 WinInet implementation: TLS via schannel,
     // no third-party dependencies in the MinGW cross build.
     bool ok = false;
-    HINTERNET hSession = WinHttpOpen(L"GeneralsX/update-checker",
-        WINHTTP_ACCESS_TYPE_DEFAULT_PROXY, WINHTTP_NO_PROXY_NAME, WINHTTP_NO_PROXY_BYPASS, 0);
-    if (!hSession)
+    HINTERNET hInet = InternetOpenA("GeneralsX/update-checker",
+        INTERNET_OPEN_TYPE_PRECONFIG, nullptr, nullptr, 0);
+    if (!hInet)
         return false;
-    // resolve / connect / send / receive timeouts (ms), matching the curl path
-    WinHttpSetTimeouts(hSession, 5000, 5000, 8000, 8000);
+    // connect / receive timeouts (ms), matching the curl path
+    DWORD connectTimeout = 5000;
+    DWORD receiveTimeout = 8000;
+    InternetSetOptionA(hInet, INTERNET_OPTION_CONNECT_TIMEOUT, &connectTimeout, sizeof(connectTimeout));
+    InternetSetOptionA(hInet, INTERNET_OPTION_RECEIVE_TIMEOUT, &receiveTimeout, sizeof(receiveTimeout));
 
-    HINTERNET hConnect = WinHttpConnect(hSession, L"api.github.com", INTERNET_DEFAULT_HTTPS_PORT, 0);
-    HINTERNET hRequest = nullptr;
-    if (hConnect)
+    const char* headers =
+        "Accept: application/vnd.github+json\r\n"
+        "X-GitHub-Api-Version: 2022-11-28\r\n";
+    HINTERNET hUrl = InternetOpenUrlA(hInet, UpdateChecker::getReleasesUrl(),
+        headers, (DWORD)-1L,
+        INTERNET_FLAG_SECURE | INTERNET_FLAG_NO_UI | INTERNET_FLAG_RELOAD, 0);
+    if (hUrl)
     {
-        hRequest = WinHttpOpenRequest(hConnect, L"GET",
-            L"/repos/" UPDATE_RELEASES_REPO L"/releases/latest",
-            nullptr, WINHTTP_NO_REFERER, WINHTTP_DEFAULT_ACCEPT_TYPES, WINHTTP_FLAG_SECURE);
-    }
-    if (hRequest)
-    {
-        const wchar_t* headers =
-            L"Accept: application/vnd.github+json\r\n"
-            L"X-GitHub-Api-Version: 2022-11-28\r\n";
-        if (WinHttpSendRequest(hRequest, headers, (DWORD)-1,
-                               WINHTTP_NO_REQUEST_DATA, 0, 0, 0)
-            && WinHttpReceiveResponse(hRequest, nullptr))
+        DWORD status = 0;
+        DWORD statusSize = sizeof(status);
+        DWORD headerIndex = 0;
+        if (HttpQueryInfoA(hUrl, HTTP_QUERY_STATUS_CODE | HTTP_QUERY_FLAG_NUMBER,
+                           &status, &statusSize, &headerIndex)
+            && status == 200)
         {
-            DWORD status = 0;
-            DWORD statusSize = sizeof(status);
-            WinHttpQueryHeaders(hRequest,
-                WINHTTP_QUERY_STATUS_CODE | WINHTTP_QUERY_FLAG_NUMBER,
-                WINHTTP_HEADER_NAME_BY_INDEX, &status, &statusSize, WINHTTP_NO_HEADER_INDEX);
-            if (status == 200)
+            char buf[4096];
+            DWORD read = 0;
+            ok = true;
+            while (InternetReadFile(hUrl, buf, sizeof(buf), &read) && read > 0)
             {
-                char buf[4096];
-                DWORD read = 0;
-                ok = true;
-                while (WinHttpReadData(hRequest, buf, sizeof(buf), &read) && read > 0)
+                // Guard against enormous responses (GitHub API is < 32 KB in practice)
+                if (responseBody.size() + read > 65536)
                 {
-                    // Guard against enormous responses (GitHub API is < 32 KB in practice)
-                    if (responseBody.size() + read > 65536)
-                    {
-                        ok = false;
-                        break;
-                    }
-                    responseBody.append(buf, read);
+                    ok = false;
+                    break;
                 }
+                responseBody.append(buf, read);
             }
         }
+        InternetCloseHandle(hUrl);
     }
+    InternetCloseHandle(hInet);
 
-    if (hRequest) WinHttpCloseHandle(hRequest);
-    if (hConnect) WinHttpCloseHandle(hConnect);
-    WinHttpCloseHandle(hSession);
-
-    fprintf(stderr, "[UpdateChecker] WinHTTP fetch %s. Response length=%zu\n",
+    fprintf(stderr, "[UpdateChecker] WinInet fetch %s. Response length=%zu\n",
             ok ? "succeeded" : "failed", responseBody.length());
     fflush(stderr);
     return ok && !responseBody.empty();
