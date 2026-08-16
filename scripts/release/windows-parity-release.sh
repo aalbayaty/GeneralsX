@@ -36,7 +36,15 @@ repo_root="$(git rev-parse --show-toplevel)"
 cd "$repo_root"
 
 echo "🔄 Fetching tags from the original GeneralsX (${UPSTREAM_REPO})..."
-git fetch --quiet --tags "https://github.com/${UPSTREAM_REPO}.git"
+# GeneralsX @build 16/08/2026 --force: upstream is the source of truth for release
+# tags. Without it, a same-named tag already in this clone that points elsewhere
+# (e.g. one GitHub minted at the fork's main HEAD on `gh release create`) fails the
+# fetch with "would clobber existing tag" — silently, since --quiet swallows the
+# per-ref rejection.
+if ! git fetch --quiet --force --tags "https://github.com/${UPSTREAM_REPO}.git"; then
+	echo "❌ Fetching tags from ${UPSTREAM_REPO} failed." >&2
+	exit 1
+fi
 
 # ---- Resolve the target release tag -----------------------------------------
 TAG="${1:-}"
@@ -137,6 +145,14 @@ if gh release view "$TAG" --repo "$FORK_REPO" >/dev/null 2>&1; then
 	gh release upload "$TAG" "$ASSET_PATH" --repo "$FORK_REPO" --clobber
 	gh release edit "$TAG" --repo "$FORK_REPO" --notes "$NOTES"
 else
+	# GeneralsX @build 16/08/2026 Push the upstream tag to the fork BEFORE creating
+	# the release: `gh release create` on a missing tag mints it at the fork's main
+	# HEAD, which diverges from upstream's tag and poisons every later run's tag
+	# fetch. --force so a stray divergent fork tag is realigned to upstream, the
+	# source of truth for release tags. (Pushed from $repo_root, where the tag still
+	# holds the upstream commit — the build clone's local re-tag never leaves it.)
+	echo "🔖 Pushing tag ${TAG} to ${FORK_REPO}..."
+	git push --quiet --force "https://github.com/${FORK_REPO}.git" "refs/tags/${TAG}"
 	echo "🚀 Creating ${FORK_REPO} release ${TAG}..."
 	gh release create "$TAG" "$ASSET_PATH" --repo "$FORK_REPO" \
 		--title "GeneralsX ${TAG} — Windows (MinGW)" --notes "$NOTES"
